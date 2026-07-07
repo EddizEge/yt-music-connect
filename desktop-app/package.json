@@ -1,0 +1,42 @@
+{
+  "name": "desktop-app",
+  "version": "1.0.0",
+  "description": "YouTube Music Connect client app",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron main.js",
+    "dist": "electron-builder --win",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "build": {
+    "appId": "com.youtube.music.connect",
+    "productName": "YouTube Music Connect",
+    "win": {
+      "target": [
+        "portable"
+      ]
+    },
+    "files": [
+      "**/*",
+      "!test*.js",
+      "!album_dump.json",
+      "!cookie_test.txt"
+    ],
+    "asar": true
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "cors": "^2.8.6",
+    "discord-rpc": "^4.0.1",
+    "express": "^5.2.1",
+    "socket.io": "^4.8.3",
+    "youtubei.js": "^17.2.0"
+  },
+  "devDependencies": {
+    "electron": "^43.0.0",
+    "electron-builder": "^26.15.3"
+  }
+}

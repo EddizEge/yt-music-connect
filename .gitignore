@@ -1,0 +1,23 @@
+# Dependencies
+node_modules/
+desktop-app/node_modules/
+mobile-app/node_modules/
+
+# Production build outputs (optional to ignore, but standard)
+mobile-app/dist/
+desktop-app/dist/
+
+# Operating System Files
+.DS_Store
+Thumbs.db
+
+# Log files and local test files
+*.log
+cookie_test.txt
+playlists_test.json
+library_test.json
+album_dump.json
+cookie_test.txt
+library_error.txt
+playlists_error.txt
+test-*.js
