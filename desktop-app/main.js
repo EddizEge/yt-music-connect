@@ -297,7 +297,7 @@ async function checkForUpdates() {
     try {
         const localVersion = require('./package.json').version;
         // Connects to a standard update URL (the user's future git repo)
-        const request = net.request('https://raw.githubusercontent.com/Eddiz/yt-music-connect/main/version.json');
+        const request = net.request('https://raw.githubusercontent.com/EddizEge/yt-music-connect/main/version.json');
         
         request.on('response', (response) => {
             let body = '';

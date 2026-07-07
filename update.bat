@@ -11,8 +11,8 @@ if exist .git (
     git pull
 ) else (
     echo [ZIP Mode] Downloading latest files from GitHub...
-    :: Replace 'Eddiz/yt-music-connect' with your actual repository path when published
-    powershell -Command "Write-Host 'Downloading updates...' -ForegroundColor Green; Invoke-WebRequest -Uri 'https://github.com/Eddiz/yt-music-connect/archive/refs/heads/main.zip' -OutFile 'update.zip'"
+    :: Replace 'EddizEge/yt-music-connect' with your actual repository path when published
+    powershell -Command "Write-Host 'Downloading updates...' -ForegroundColor Green; Invoke-WebRequest -Uri 'https://github.com/EddizEge/yt-music-connect/archive/refs/heads/main.zip' -OutFile 'update.zip'"
     if %ERRORLEVEL% NEQ 0 (
         echo [ERROR] Failed to download update.zip. Ensure you are connected to the internet.
         goto end
