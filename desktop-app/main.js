@@ -312,7 +312,7 @@ async function checkForUpdates() {
                             type: 'info',
                             title: 'Update Available',
                             message: `A new update (${data.version}) is available!`,
-                            detail: `Notes: ${data.notes || 'Performance fixes'}\n\nPlease run 'update.bat' in the project folder to update automatically.`,
+                            detail: `Notes: ${data.notes || 'Performance fixes'}\n\nTo update, run 'update.bat' (if you installed the full folder) or download the latest .exe from: https://github.com/EddizEge/yt-music-connect/releases`,
                             buttons: ['Close']
                         });
                     }
