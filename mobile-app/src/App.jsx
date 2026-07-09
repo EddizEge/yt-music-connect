@@ -47,28 +47,43 @@ export default function App() {
       }
     });
 
-    socket.emit('get-home', (res) => {
-      setLoadingHome(false);
-      if(res.success) setHomeSections(res.data);
-    });
-
-    socket.emit('get-explore', (res) => {
-      setLoadingExplore(false);
-      if(res.success) setExploreSections(res.data);
-    });
-
-    socket.emit('get-library', (res) => {
-      setLoadingLibrary(false);
-      if(res.success) {
-        setLibraryItems(res.data);
-        setLibraryError(null);
-      } else {
-        setLibraryError(res.error || 'Kütüphane yüklenemedi');
-      }
-    });
-
     return () => socket.off('state-update');
   }, [isSlidingVolume]);
+
+  useEffect(() => {
+    if (activeTab === 'Home') {
+      setLoadingHome(true);
+      socket.emit('get-home', (res) => {
+        setLoadingHome(false);
+        if(res.success) setHomeSections(res.data);
+      });
+    }
+  }, [activeTab]);
+
+  useEffect(() => {
+    if (activeTab === 'Explore') {
+      setLoadingExplore(true);
+      socket.emit('get-explore', (res) => {
+        setLoadingExplore(false);
+        if(res.success) setExploreSections(res.data);
+      });
+    }
+  }, [activeTab]);
+
+  useEffect(() => {
+    if (activeTab === 'Library') {
+      setLoadingLibrary(true);
+      socket.emit('get-library', (res) => {
+        setLoadingLibrary(false);
+        if(res.success) {
+          setLibraryItems(res.data);
+          setLibraryError(null);
+        } else {
+          setLibraryError(res.error || 'Kütüphane yüklenemedi');
+        }
+      });
+    }
+  }, [activeTab]);
 
   const handleSearch = (e) => {
     e.preventDefault();
@@ -532,7 +547,8 @@ export default function App() {
                 boxShadow: '0 4px 15px rgba(255,0,85,0.3)'
               }}
               onClick={() => {
-                alert('Bağlantı tazelendi ve senkronizasyon tamamlandı.');
+                setLoadingLibrary(true);
+                setActiveTab('Library');
               }}
             >
               Bağlantıyı Yenile
