@@ -96,8 +96,78 @@ setInterval(() => {
             } else {
                 window.location.href = `https://music.youtube.com/watch?v=${videoId}`;
             }
-        }
+        } else if (command.startsWith('playNext:')) {
+                const videoId = command.split(':')[1];
+                addVideoToQueue(videoId, true);
+            } else if (command.startsWith('addToQueue:')) {
+                const videoId = command.split(':')[1];
+                addVideoToQueue(videoId, false);
+            } else if (command === 'openProfile') {
+                window.location.href = 'https://music.youtube.com/library';
+            }
     });
+
+function addVideoToQueue(videoId, playNext = false) {
+    const app = document.querySelector('ytmusic-app');
+    if (!app) return;
+    
+    const insertPosition = playNext ? 'INSERT_AFTER_CURRENT_VIDEO' : 'INSERT_AT_END';
+    
+    // Method 1: Redux Action ADD_ITEMS_TO_QUEUE
+    try {
+        if (app.store && app.store.dispatch) {
+            app.store.dispatch({
+                type: 'ADD_ITEMS_TO_QUEUE',
+                payload: {
+                    videoIds: [videoId],
+                    queueInsertPosition: insertPosition
+                }
+            });
+            console.log('Queued via ADD_ITEMS_TO_QUEUE');
+            return;
+        }
+    } catch(e) {}
+    
+    // Method 2: Redux Action QUEUE_ADD_ITEMS
+    try {
+        if (app.store && app.store.dispatch) {
+            app.store.dispatch({
+                type: 'QUEUE_ADD_ITEMS',
+                payload: {
+                    items: [{ videoId }],
+                    queueInsertPosition: insertPosition
+                }
+            });
+            console.log('Queued via QUEUE_ADD_ITEMS');
+            return;
+        }
+    } catch(e) {}
+    
+    // Method 3: app.queue.add
+    try {
+        if (app.queue && typeof app.queue.add === 'function') {
+            app.queue.add({ videoId, insertPosition });
+            console.log('Queued via app.queue.add');
+            return;
+        }
+    } catch(e) {}
+    
+    // Method 4: HTML5 player API addToPlaylist
+    try {
+        const player = document.getElementById('movie_player');
+        if (player) {
+            if (typeof player.addToPlaylist === 'function') {
+                player.addToPlaylist(videoId);
+                console.log('Queued via player.addToPlaylist');
+                return;
+            } else if (typeof player.enqueueVideo === 'function') {
+                player.enqueueVideo(videoId);
+                console.log('Queued via player.enqueueVideo');
+                return;
+            }
+        }
+    } catch(e) {}
+}
 
 function injectConnectionOverlay() {
     if (document.getElementById('ytm-connect-float-btn')) return;

@@ -72,13 +72,28 @@ app.whenReady().then(async () => {
     mainWindow = new BrowserWindow({
         width: 1280,
         height: 720,
+        icon: path.join(__dirname, 'build/icon.png'),
+        autoHideMenuBar: true,
+        title: titleText,
         webPreferences: {
             preload: path.join(__dirname, 'preload.js'),
             nodeIntegration: false,
             contextIsolation: false // for simpler setup with preload
         },
-        autoHideMenuBar: true,
-        title: titleText
+    });
+
+    // Strip Content Security Policy headers enforcing Trusted Types to allow UI injection
+    mainWindow.webContents.session.webRequest.onHeadersReceived((details, callback) => {
+        const responseHeaders = details.responseHeaders;
+        const cspKey = Object.keys(responseHeaders).find(key => key.toLowerCase() === 'content-security-policy');
+        if (cspKey) {
+            let csp = responseHeaders[cspKey][0];
+            csp = csp
+                .replace(/require-trusted-types-for\s+[^;]+;?/g, '')
+                .replace(/trusted-types\s+[^;]+;?/g, '');
+            responseHeaders[cspKey] = [csp];
+        }
+        callback({ responseHeaders });
     });
 
     // Find free port and start server
@@ -95,6 +110,10 @@ app.whenReady().then(async () => {
     });
 
     mainWindow.loadURL('https://music.youtube.com');
+
+    mainWindow.webContents.on('console-message', (event, level, message, line, sourceId) => {
+        console.log(`[RENDERER CONSOLE] ${message} (at ${sourceId}:${line})`);
+    });
 
     // Prevent YouTube Music from overwriting Electron window title
     mainWindow.on('page-title-updated', (e) => {
@@ -246,13 +265,75 @@ io.on('connection', (socket) => {
         if(yt) {
             try {
                 const library = await yt.music.getLibrary();
-                const items = library.contents?.map(item => ({
-                    id: item.endpoint?.payload?.browseId || item.id,
-                    title: item.title?.text || item.title || 'Playlist',
-                    subtitle: item.subtitle?.runs?.map(r => r.text).join('') || '',
-                    cover: item.thumbnails?.[0]?.url || item.thumbnail?.[0]?.url || item.thumbnail?.contents?.[0]?.url
-                })) || [];
+                let items = [];
+                
+                if (library.playlists) {
+                    const playlists = library.playlists.contents || library.playlists;
+                    if (Array.isArray(playlists)) {
+                        items.push(...playlists.map(p => ({
+                            id: p.id || p.endpoint?.payload?.browseId,
+                            title: p.title?.text || p.title || 'Playlist',
+                            subtitle: 'Playlist',
+                            cover: p.thumbnails?.[0]?.url || p.thumbnail?.[0]?.url
+                        })));
+                    }
+                }
+                
+                if (library.albums) {
+                    const albums = library.albums.contents || library.albums;
+                    if (Array.isArray(albums)) {
+                        items.push(...albums.map(a => ({
+                            id: a.id || a.endpoint?.payload?.browseId,
+                            title: a.title?.text || a.title || 'Album',
+                            subtitle: 'Album • ' + (a.artists?.map(art => art.name).join(', ') || ''),
+                            cover: a.thumbnails?.[0]?.url || a.thumbnail?.[0]?.url
+                        })));
+                    }
+                }
+
+                if (library.artists) {
+                    const artists = library.artists.contents || library.artists;
+                    if (Array.isArray(artists)) {
+                        items.push(...artists.map(art => ({
+                            id: art.id || art.endpoint?.payload?.browseId,
+                            title: art.name || art.title?.text || 'Artist',
+                            subtitle: 'Artist',
+                            cover: art.thumbnails?.[0]?.url || art.thumbnail?.[0]?.url
+                        })));
+                    }
+                }
+                
+                if (items.length === 0 && library.contents) {
+                    items = library.contents.map(item => ({
+                        id: item.endpoint?.payload?.browseId || item.id,
+                        title: item.title?.text || item.title || 'Playlist',
+                        subtitle: item.subtitle?.runs?.map(r => r.text).join('') || '',
+                        cover: item.thumbnails?.[0]?.url || item.thumbnail?.[0]?.url || item.thumbnail?.contents?.[0]?.url
+                    }));
+                }
+
                 callback({ success: true, data: items });
+            } catch (err) {
+                callback({ success: false, error: err.message });
+            }
+        }
+    });
+
+    socket.on('get-explore', async (callback) => {
+        if(yt) {
+            try {
+                const explore = await yt.music.getExplore();
+                const sections = explore.sections?.map(sec => ({
+                    title: sec.title?.text || sec.title || 'Trending',
+                    items: sec.contents?.map(item => ({
+                        id: item.id || item.endpoint?.payload?.videoId || item.endpoint?.payload?.browseId,
+                        title: item.title?.text || item.title || 'Unknown',
+                        subtitle: item.subtitle?.runs?.map(r => r.text).join('') || item.subtitle?.text || item.subtitle || '',
+                        cover: item.thumbnails?.[0]?.url || item.thumbnail?.[0]?.url || item.thumbnail?.contents?.[0]?.url,
+                        isArtist: item.endpoint?.payload?.browseEndpointContextSupportedConfigs?.browseEndpointContextMusicConfig?.pageType === 'MUSIC_PAGE_TYPE_ARTIST'
+                    })) || []
+                })) || [];
+                callback({ success: true, data: sections });
             } catch (err) {
                 callback({ success: false, error: err.message });
             }

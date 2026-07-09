@@ -1,4 +1,4 @@
 {
-  "version": "1.0.1",
-  "notes": "v1.0.1: Added custom Red YT Music icon, installer desktop shortcuts, in-app QR connection settings menu, developed by Ediz Ege Mercan."
+  "version": "1.0.5",
+  "notes": "v1.0.5: Added playNext and addToQueue context menus, functional Explore music sections, and dynamic Library parsing for playlists/albums/artists."
 }

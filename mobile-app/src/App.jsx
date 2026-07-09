@@ -10,12 +10,15 @@ export default function App() {
   const [searchResults, setSearchResults] = useState([]);
   
   const [homeSections, setHomeSections] = useState([]);
+  const [exploreSections, setExploreSections] = useState([]);
   const [libraryItems, setLibraryItems] = useState([]);
+  const [contextMenuSong, setContextMenuSong] = useState(null);
   
   const [collectionData, setCollectionData] = useState(null);
 
   const [loadingSearch, setLoadingSearch] = useState(false);
   const [loadingHome, setLoadingHome] = useState(true);
+  const [loadingExplore, setLoadingExplore] = useState(true);
   const [loadingLibrary, setLoadingLibrary] = useState(true);
   const [loadingCollection, setLoadingCollection] = useState(false);
 
@@ -46,6 +49,11 @@ export default function App() {
     socket.emit('get-home', (res) => {
       setLoadingHome(false);
       if(res.success) setHomeSections(res.data);
+    });
+
+    socket.emit('get-explore', (res) => {
+      setLoadingExplore(false);
+      if(res.success) setExploreSections(res.data);
     });
 
     socket.emit('get-library', (res) => {
@@ -113,12 +121,7 @@ export default function App() {
           <Cast size={20} color="white" />
           <Search size={20} color="white" onClick={() => setActiveTab('Search')} />
           <div className="profile-pic" onClick={() => {
-            setLoadingLibrary(true);
-            socket.emit('get-library', (res) => {
-              setLoadingLibrary(false);
-              if(res.success) setLibraryItems(res.data);
-            });
-            alert('Library & Login status synced!');
+            socket.emit('command', 'openProfile');
           }}>E</div>
         </div>
       </div>
@@ -184,7 +187,19 @@ export default function App() {
                            <div className="song-title">{song.title}</div>
                            <div className="song-artist">{song.artist}</div>
                          </div>
-                         <MoreVertical size={20} color="#aaa" />
+                          <MoreVertical 
+                            size={20} 
+                            color="#aaa" 
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setContextMenuSong({
+                                id: song.id,
+                                title: song.title,
+                                artist: song.artist,
+                                cover: song.cover || collectionData.cover
+                              });
+                            }}
+                          />
                        </div>
                      ))}
                   </div>
@@ -262,7 +277,19 @@ export default function App() {
                     <div className="song-title">{item.title}</div>
                     <div className="song-artist">{item.subtitle}</div>
                   </div>
-                  <MoreVertical size={20} color="#aaa" />
+                  <MoreVertical 
+                    size={20} 
+                    color="#aaa" 
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setContextMenuSong({
+                        id: item.id,
+                        title: item.title,
+                        artist: item.subtitle,
+                        cover: item.cover
+                      });
+                    }}
+                  />
                 </div>
               ))
             ) : (
@@ -307,7 +334,19 @@ export default function App() {
                       <div className="song-title">{song.title}</div>
                       <div className="song-artist">{song.artist}</div>
                     </div>
-                    <MoreVertical size={20} color="#aaa" />
+                    <MoreVertical 
+                      size={20} 
+                      color="#aaa" 
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setContextMenuSong({
+                          id: song.id,
+                          title: song.title,
+                          artist: song.artist,
+                          cover: song.cover
+                        });
+                      }}
+                    />
                   </div>
                 ))}
               </div>
@@ -317,11 +356,29 @@ export default function App() {
 
         {/* EXPLORE TAB */}
         {activeTab === 'Explore' && (
-          <div style={{textAlign: 'center', marginTop: '4rem', color: '#666', padding: '0 20px'}}>
-            <div style={{fontSize: '18px', fontWeight: '500', marginBottom: '8px', color: '#fff'}}>
-              Explore New Music
-            </div>
-            <div>Discover trending tracks and new releases.</div>
+          <div>
+            {loadingExplore ? (
+               <div style={{textAlign: 'center', marginTop: '2rem', color: '#aaa'}}><Loader2 className="lucide-spin" size={24} /></div>
+            ) : (
+              exploreSections.map((section, idx) => (
+                <div key={idx}>
+                  <div className="shelf-title">{section.title}</div>
+                  <div className="carousel">
+                    {section.items.map((item, i) => (
+                      <div key={i} className="carousel-item" onClick={() => handleItemClick(item.id)}>
+                        <img 
+                          src={item.cover?.replace(/=w\d+-h\d+.*/, '=w500-h500-l90-rj')} 
+                          className={`carousel-thumb ${item.isArtist ? 'artist' : ''}`} 
+                          alt="cover" 
+                        />
+                        <div className="carousel-title">{item.title}</div>
+                        <div className="carousel-subtitle">{item.subtitle}</div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))
+            )}
           </div>
         )}
 
@@ -433,6 +490,43 @@ export default function App() {
           </div>
         </div>
       )}
+      
+      {/* Context Menu Bottom Sheet */}
+      {contextMenuSong && (
+        <div className="context-menu-backdrop" onClick={() => setContextMenuSong(null)}>
+          <div className="context-menu-sheet" onClick={e => e.stopPropagation()}>
+            <div className="sheet-header">
+              {contextMenuSong.cover ? (
+                <img src={contextMenuSong.cover} className="sheet-thumb" alt="cover" />
+              ) : (
+                <div className="sheet-thumb" style={{background: '#333'}}></div>
+              )}
+              <div className="sheet-details">
+                <div className="sheet-title">{contextMenuSong.title}</div>
+                <div className="sheet-artist">{contextMenuSong.artist}</div>
+              </div>
+            </div>
+            <div className="sheet-options">
+              <div className="sheet-option" onClick={() => {
+                socket.emit('command', `playNext:${contextMenuSong.id}`);
+                setContextMenuSong(null);
+              }}>
+                <span className="option-icon" style={{marginRight: '12px', fontSize: '18px'}}>⏭️</span>
+                <span>Bundan Sonra Oynat (Play Next)</span>
+              </div>
+              <div className="sheet-option" onClick={() => {
+                socket.emit('command', `addToQueue:${contextMenuSong.id}`);
+                setContextMenuSong(null);
+              }}>
+                <span className="option-icon" style={{marginRight: '12px', fontSize: '18px'}}>➕</span>
+                <span>Sıraya Ekle (Add to Queue)</span>
+              </div>
+            </div>
+            <button className="sheet-cancel-btn" onClick={() => setContextMenuSong(null)}>İptal</button>
+          </div>
+        </div>
+      )}
+      
       <style>{`
         @keyframes spin {
           from { transform: rotate(0deg); }
@@ -440,6 +534,100 @@ export default function App() {
         }
         .lucide-spin {
           animation: spin 1s linear infinite;
+        }
+        .context-menu-backdrop {
+          position: fixed;
+          top: 0;
+          left: 0;
+          width: 100%;
+          height: 100%;
+          background: rgba(0,0,0,0.6);
+          z-index: 100000;
+          display: flex;
+          align-items: flex-end;
+          justify-content: center;
+        }
+        .context-menu-sheet {
+          width: 100%;
+          max-width: 500px;
+          background: #1f1f1f;
+          border-top-left-radius: 16px;
+          border-top-right-radius: 16px;
+          padding: 20px;
+          color: white;
+          box-shadow: 0 -4px 20px rgba(0,0,0,0.5);
+          animation: slideUp 0.25s ease-out;
+        }
+        @keyframes slideUp {
+          from { transform: translateY(100%); }
+          to { transform: translateY(0); }
+        }
+        .sheet-header {
+          display: flex;
+          align-items: center;
+          gap: 16px;
+          padding-bottom: 16px;
+          border-bottom: 1px solid rgba(255,255,255,0.1);
+          margin-bottom: 16px;
+        }
+        .sheet-thumb {
+          width: 48px;
+          height: 48px;
+          border-radius: 4px;
+          object-fit: cover;
+        }
+        .sheet-details {
+          flex: 1;
+          text-align: left;
+        }
+        .sheet-title {
+          font-weight: 500;
+          font-size: 15px;
+          display: -webkit-box;
+          -webkit-line-clamp: 1;
+          -webkit-box-orient: vertical;
+          overflow: hidden;
+        }
+        .sheet-artist {
+          font-size: 13px;
+          color: #aaa;
+          margin-top: 2px;
+          display: -webkit-box;
+          -webkit-line-clamp: 1;
+          -webkit-box-orient: vertical;
+          overflow: hidden;
+        }
+        .sheet-options {
+          display: flex;
+          flex-direction: column;
+          gap: 8px;
+        }
+        .sheet-option {
+          display: flex;
+          align-items: center;
+          padding: 12px 16px;
+          border-radius: 8px;
+          cursor: pointer;
+          transition: background 0.2s;
+          text-align: left;
+        }
+        .sheet-option:hover {
+          background: rgba(255,255,255,0.05);
+        }
+        .sheet-cancel-btn {
+          width: 100%;
+          background: #2b2b2b;
+          border: none;
+          color: white;
+          padding: 12px;
+          border-radius: 8px;
+          font-weight: 500;
+          margin-top: 16px;
+          cursor: pointer;
+          transition: background 0.2s;
+        }
+        .sheet-cancel-btn:hover {
+          background: #333;
         }
       `}</style>
     </div>
