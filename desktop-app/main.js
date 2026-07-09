@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog, net: electronNet } = require('electron');
 const path = require('path');
 const express = require('express');
 const http = require('http');
@@ -330,12 +330,11 @@ io.on('connection', (socket) => {
     });
 });
 
-const { dialog, net } = require('electron');
 async function checkForUpdates() {
     try {
         const localVersion = require('./package.json').version;
         // Connects to a standard update URL (the user's future git repo)
-        const request = net.request('https://raw.githubusercontent.com/EddizEge/yt-music-connect/main/version.json');
+        const request = electronNet.request('https://raw.githubusercontent.com/EddizEge/yt-music-connect/main/version.json');
         
         request.on('response', (response) => {
             let body = '';
