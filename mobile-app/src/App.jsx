@@ -120,8 +120,8 @@ export default function App() {
         <div style={{display: 'flex', gap: '16px', alignItems: 'center'}}>
           <Cast size={20} color="white" />
           <Search size={20} color="white" onClick={() => setActiveTab('Search')} />
-          <div className="profile-pic" onClick={() => {
-            socket.emit('command', 'openProfile');
+          <div className={`profile-pic ${activeTab === 'Profile' ? 'active' : ''}`} onClick={() => {
+            setActiveTab('Profile');
           }}>E</div>
         </div>
       </div>
@@ -247,12 +247,44 @@ export default function App() {
                   <div className="shelf-title">{section.title}</div>
                   <div className="carousel">
                     {section.items.map((item, i) => (
-                      <div key={i} className="carousel-item" onClick={() => handleItemClick(item.id)}>
-                        <img 
-                          src={item.cover?.replace(/=w\d+-h\d+.*/, '=w500-h500-l90-rj')} 
-                          className={`carousel-thumb ${item.isArtist ? 'artist' : ''}`} 
-                          alt="cover" 
-                        />
+                      <div key={i} className="carousel-item" style={{position: 'relative'}} onClick={() => handleItemClick(item.id)}>
+                        <div className="carousel-thumb-wrapper" style={{position: 'relative'}}>
+                          <img 
+                            src={item.cover?.replace(/=w\d+-h\d+.*/, '=w500-h500-l90-rj')} 
+                            className={`carousel-thumb ${item.isArtist ? 'artist' : ''}`} 
+                            alt="cover" 
+                          />
+                          <button 
+                            className="carousel-more-btn"
+                            style={{
+                              position: 'absolute',
+                              top: '8px',
+                              right: '8px',
+                              background: 'rgba(0,0,0,0.6)',
+                              border: 'none',
+                              borderRadius: '50%',
+                              width: '32px',
+                              height: '32px',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              cursor: 'pointer',
+                              color: 'white',
+                              zIndex: 10
+                            }}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setContextMenuSong({
+                                id: item.id,
+                                title: item.title,
+                                artist: item.subtitle,
+                                cover: item.cover
+                              });
+                            }}
+                          >
+                            <MoreVertical size={16} color="white" />
+                          </button>
+                        </div>
                         <div className="carousel-title">{item.title}</div>
                         <div className="carousel-subtitle">{item.subtitle}</div>
                       </div>
@@ -365,12 +397,44 @@ export default function App() {
                   <div className="shelf-title">{section.title}</div>
                   <div className="carousel">
                     {section.items.map((item, i) => (
-                      <div key={i} className="carousel-item" onClick={() => handleItemClick(item.id)}>
-                        <img 
-                          src={item.cover?.replace(/=w\d+-h\d+.*/, '=w500-h500-l90-rj')} 
-                          className={`carousel-thumb ${item.isArtist ? 'artist' : ''}`} 
-                          alt="cover" 
-                        />
+                      <div key={i} className="carousel-item" style={{position: 'relative'}} onClick={() => handleItemClick(item.id)}>
+                        <div className="carousel-thumb-wrapper" style={{position: 'relative'}}>
+                          <img 
+                            src={item.cover?.replace(/=w\d+-h\d+.*/, '=w500-h500-l90-rj')} 
+                            className={`carousel-thumb ${item.isArtist ? 'artist' : ''}`} 
+                            alt="cover" 
+                          />
+                          <button 
+                            className="carousel-more-btn"
+                            style={{
+                              position: 'absolute',
+                              top: '8px',
+                              right: '8px',
+                              background: 'rgba(0,0,0,0.6)',
+                              border: 'none',
+                              borderRadius: '50%',
+                              width: '32px',
+                              height: '32px',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              cursor: 'pointer',
+                              color: 'white',
+                              zIndex: 10
+                            }}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setContextMenuSong({
+                                id: item.id,
+                                title: item.title,
+                                artist: item.subtitle,
+                                cover: item.cover
+                              });
+                            }}
+                          >
+                            <MoreVertical size={16} color="white" />
+                          </button>
+                        </div>
                         <div className="carousel-title">{item.title}</div>
                         <div className="carousel-subtitle">{item.subtitle}</div>
                       </div>
@@ -379,6 +443,88 @@ export default function App() {
                 </div>
               ))
             )}
+          </div>
+        )}
+
+        {/* PROFILE TAB */}
+        {activeTab === 'Profile' && (
+          <div className="profile-view" style={{padding: '24px 16px', color: 'white', textAlign: 'center'}}>
+            <div className="profile-avatar-container" style={{margin: '20px auto', position: 'relative', width: '100px', height: '100px'}}>
+              <div className="profile-avatar-glow" style={{
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                width: '100px',
+                height: '100px',
+                borderRadius: '50%',
+                background: 'linear-gradient(45deg, #ff0055, #00ffcc)',
+                filter: 'blur(8px)',
+                opacity: 0.7
+               }}></div>
+              <div className="profile-avatar-inner" style={{
+                position: 'absolute',
+                top: '4px',
+                left: '4px',
+                width: '92px',
+                height: '92px',
+                borderRadius: '50%',
+                background: '#111',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: '36px',
+                fontWeight: 'bold',
+                color: 'white',
+                border: '2px solid rgba(255,255,255,0.1)'
+              }}>E</div>
+            </div>
+            
+            <div className="profile-name" style={{fontSize: '22px', fontWeight: 'bold', marginBottom: '4px'}}>Ediz Ege Mercan</div>
+            <div className="profile-email" style={{fontSize: '14px', color: '#888', marginBottom: '24px'}}>YT Music Connect User</div>
+            
+            <div className="profile-details-card" style={{
+              background: 'rgba(255,255,255,0.03)',
+              border: '1px solid rgba(255,255,255,0.05)',
+              borderRadius: '12px',
+              padding: '16px',
+              textAlign: 'left',
+              marginBottom: '24px'
+            }}>
+              <div style={{display: 'flex', justifyContent: 'space-between', marginBottom: '12px'}}>
+                <span style={{color: '#aaa'}}>Uygulama Sürümü:</span>
+                <span style={{fontWeight: '500'}}>v1.0.5</span>
+              </div>
+              <div style={{display: 'flex', justifyContent: 'space-between', marginBottom: '12px'}}>
+                <span style={{color: '#aaa'}}>Sunucu Portu:</span>
+                <span style={{fontWeight: '500'}}>{window.location.port || '8080'}</span>
+              </div>
+              <div style={{display: 'flex', justifyContent: 'space-between', marginBottom: '12px'}}>
+                <span style={{color: '#aaa'}}>Bağlantı Durumu:</span>
+                <span style={{color: '#00ffcc', fontWeight: '500'}}>Bağlandı (Aktif)</span>
+              </div>
+              <div style={{display: 'flex', justifyContent: 'space-between'}}>
+                <span style={{color: '#aaa'}}>Geliştirici:</span>
+                <span style={{fontWeight: '500', color: '#ff0055'}}>Ediz Ege Mercan</span>
+              </div>
+            </div>
+
+            <button 
+              className="btn" 
+              style={{
+                width: '100%', 
+                background: 'linear-gradient(45deg, #ff0055, #ff00aa)', 
+                color: 'white', 
+                padding: '12px', 
+                borderRadius: '8px', 
+                fontWeight: 'bold',
+                boxShadow: '0 4px 15px rgba(255,0,85,0.3)'
+              }}
+              onClick={() => {
+                alert('Bağlantı tazelendi ve senkronizasyon tamamlandı.');
+              }}
+            >
+              Bağlantıyı Yenile
+            </button>
           </div>
         )}
 

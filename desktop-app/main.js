@@ -130,9 +130,12 @@ app.whenReady().then(async () => {
     // Listen for cookie changes or navigation to capture user login
     const updateAuth = async () => {
         try {
-            const cookies = await mainWindow.webContents.session.cookies.get({ domain: '.youtube.com' });
+            const cookies = await mainWindow.webContents.session.cookies.get({});
             if (cookies.length > 0) {
-                const cookieStr = cookies.map(c => `${c.name}=${c.value}`).join('; ');
+                const cookieStr = cookies
+                    .filter(c => c.domain.includes('youtube.com'))
+                    .map(c => `${c.name}=${c.value}`)
+                    .join('; ');
                 yt = await Innertube.create({ cookie: cookieStr });
                 console.log("YouTubei.js authenticated with user cookies!");
             }
