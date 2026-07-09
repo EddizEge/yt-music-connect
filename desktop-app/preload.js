@@ -4,14 +4,14 @@ let volumeRestored = false;
 let lastVideoSrc = '';
 
 // Setup observer to extract song information and send it to main process
-window.addEventListener('load', () => {
-    setInterval(() => {
-        // Enforce connection overlay presence (YT Music's SPA framework can occasionally wipe the body)
-        if (!document.getElementById('ytm-connect-float-btn')) {
-            try {
-                injectConnectionOverlay();
-            } catch (e) {}
-        }
+// Start interval immediately to avoid race conditions with window load event
+setInterval(() => {
+    // Enforce connection overlay presence (YT Music's SPA framework can occasionally wipe the body)
+    if (document.body && !document.getElementById('ytm-connect-float-btn')) {
+        try {
+            injectConnectionOverlay();
+        } catch (e) {}
+    }
         const titleElement = document.querySelector('.title.ytmusic-player-bar');
         const artistElement = document.querySelector('.byline.style-scope.ytmusic-player-bar');
         const imgElement = document.querySelector('#layout > ytmusic-player-bar img');
@@ -98,7 +98,6 @@ window.addEventListener('load', () => {
             }
         }
     });
-});
 
 function injectConnectionOverlay() {
     if (document.getElementById('ytm-connect-float-btn')) return;
