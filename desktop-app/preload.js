@@ -108,8 +108,12 @@ setInterval(() => {
     });
 
 function addVideoToQueue(videoId, playNext = false) {
+    console.log(`addVideoToQueue requested: videoId=${videoId}, playNext=${playNext}`);
     const app = document.querySelector('ytmusic-app');
-    if (!app) return;
+    if (!app) {
+        console.log('addVideoToQueue error: ytmusic-app not found in DOM');
+        return;
+    }
     
     const insertPosition = playNext ? 'INSERT_AFTER_CURRENT_VIDEO' : 'INSERT_AT_END';
     
@@ -126,7 +130,9 @@ function addVideoToQueue(videoId, playNext = false) {
             console.log('Queued via ADD_ITEMS_TO_QUEUE');
             return;
         }
-    } catch(e) {}
+    } catch(e) {
+        console.log('ADD_ITEMS_TO_QUEUE failed:', e.message);
+    }
     
     // Method 2: Redux Action QUEUE_ADD_ITEMS
     try {
@@ -141,18 +147,63 @@ function addVideoToQueue(videoId, playNext = false) {
             console.log('Queued via QUEUE_ADD_ITEMS');
             return;
         }
-    } catch(e) {}
+    } catch(e) {
+        console.log('QUEUE_ADD_ITEMS failed:', e.message);
+    }
+
+    // Method 3: Redux Action ADD_PLAYBACK_ITEMS
+    try {
+        if (app.store && app.store.dispatch) {
+            app.store.dispatch({
+                type: 'ADD_PLAYBACK_ITEMS',
+                payload: {
+                    videoIds: [videoId],
+                    queueInsertPosition: insertPosition
+                }
+            });
+            console.log('Queued via ADD_PLAYBACK_ITEMS');
+            return;
+        }
+    } catch(e) {
+        console.log('ADD_PLAYBACK_ITEMS failed:', e.message);
+    }
     
-    // Method 3: app.queue.add
+    // Method 4: app.queue.add
     try {
         if (app.queue && typeof app.queue.add === 'function') {
             app.queue.add({ videoId, insertPosition });
             console.log('Queued via app.queue.add');
             return;
         }
-    } catch(e) {}
+    } catch(e) {
+        console.log('app.queue.add failed:', e.message);
+    }
     
-    // Method 4: HTML5 player API addToPlaylist
+    // Method 5: playerApi_ of ytmusic-player-bar
+    try {
+        const playerBar = document.querySelector('ytmusic-player-bar');
+        const playerApi = playerBar ? playerBar.playerApi_ : null;
+        if (playerApi) {
+            if (typeof playerApi.addToPlaylist === 'function') {
+                playerApi.addToPlaylist(videoId);
+                console.log('Queued via playerApi.addToPlaylist');
+                return;
+            } else if (typeof playerApi.enqueueVideo === 'function') {
+                playerApi.enqueueVideo(videoId);
+                console.log('Queued via playerApi.enqueueVideo');
+                return;
+            } else if (typeof playerApi.cueVideoById === 'function' && playNext) {
+                // fallback to cue/load if queue actions are not available
+                playerApi.cueVideoById(videoId);
+                console.log('Cued via playerApi.cueVideoById');
+                return;
+            }
+        }
+    } catch(e) {
+        console.log('playerApi queue failed:', e.message);
+    }
+
+    // Method 6: HTML5 player API addToPlaylist
     try {
         const player = document.getElementById('movie_player');
         if (player) {
@@ -166,7 +217,11 @@ function addVideoToQueue(videoId, playNext = false) {
                 return;
             }
         }
-    } catch(e) {}
+    } catch(e) {
+        console.log('movie_player queue failed:', e.message);
+    }
+    
+    console.log('All queueing methods failed.');
 }
 
 function injectConnectionOverlay() {

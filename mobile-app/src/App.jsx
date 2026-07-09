@@ -12,6 +12,7 @@ export default function App() {
   const [homeSections, setHomeSections] = useState([]);
   const [exploreSections, setExploreSections] = useState([]);
   const [libraryItems, setLibraryItems] = useState([]);
+  const [libraryError, setLibraryError] = useState(null);
   const [contextMenuSong, setContextMenuSong] = useState(null);
   
   const [collectionData, setCollectionData] = useState(null);
@@ -58,7 +59,12 @@ export default function App() {
 
     socket.emit('get-library', (res) => {
       setLoadingLibrary(false);
-      if(res.success) setLibraryItems(res.data);
+      if(res.success) {
+        setLibraryItems(res.data);
+        setLibraryError(null);
+      } else {
+        setLibraryError(res.error || 'Kütüphane yüklenemedi');
+      }
     });
 
     return () => socket.off('state-update');
@@ -299,9 +305,15 @@ export default function App() {
         {/* LIBRARY TAB */}
         {activeTab === 'Library' && (
           <div style={{paddingTop: '16px'}}>
-            {loadingLibrary ? (
-               <div style={{textAlign: 'center', marginTop: '2rem', color: '#aaa'}}><Loader2 className="lucide-spin" size={24} /></div>
-            ) : libraryItems.length > 0 ? (
+             {loadingLibrary ? (
+                <div style={{textAlign: 'center', marginTop: '2rem', color: '#aaa'}}><Loader2 className="lucide-spin" size={24} /></div>
+             ) : libraryError ? (
+                <div style={{textAlign: 'center', marginTop: '2rem', color: '#ff4d4d', padding: '0 20px', fontSize: '14px', lineHeight: '1.6'}}>
+                  <strong>Bağlantı Hatası:</strong><br/>
+                  {libraryError}<br/><br/>
+                  Lütfen PC uygulamasında hesabınıza giriş yaptığınızdan emin olun, ardından profil sayfasındaki 'Yenile' butonu ile güncelleyin.
+                </div>
+             ) : libraryItems.length > 0 ? (
               libraryItems.map((item, idx) => (
                 <div key={idx} className="song-item" onClick={() => handleItemClick(item.id)}>
                   <img src={item.cover} className="song-thumb" alt="cover" />

@@ -132,6 +132,7 @@ app.whenReady().then(async () => {
         try {
             const cookies = await mainWindow.webContents.session.cookies.get({});
             if (cookies.length > 0) {
+                console.log("Captured cookie names:", cookies.map(c => c.name));
                 const cookieStr = cookies
                     .filter(c => c.domain.includes('youtube.com'))
                     .map(c => `${c.name}=${c.value}`)
@@ -139,7 +140,9 @@ app.whenReady().then(async () => {
                 yt = await Innertube.create({ cookie: cookieStr });
                 console.log("YouTubei.js authenticated with user cookies!");
             }
-        } catch(e) {}
+        } catch(e) {
+            console.error("updateAuth error during Innertube.create:", e.message);
+        }
     };
 
     updateAuth(); // Run immediately on boot
@@ -317,8 +320,12 @@ io.on('connection', (socket) => {
 
                 callback({ success: true, data: items });
             } catch (err) {
+                console.error("get-library error:", err);
                 callback({ success: false, error: err.message });
             }
+        } else {
+            console.error("get-library error: yt client not initialized");
+            callback({ success: false, error: "Client is initializing. Please wait." });
         }
     });
 
