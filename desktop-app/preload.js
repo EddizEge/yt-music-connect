@@ -5,6 +5,12 @@ let lastVideoSrc = '';
 
 // Setup observer to extract song information and send it to main process
 window.addEventListener('load', () => {
+    try {
+        injectConnectionOverlay();
+    } catch (e) {
+        console.error('Failed to inject connection overlay:', e);
+    }
+
     setInterval(() => {
         const titleElement = document.querySelector('.title.ytmusic-player-bar');
         const artistElement = document.querySelector('.byline.style-scope.ytmusic-player-bar');
@@ -93,3 +99,195 @@ window.addEventListener('load', () => {
         }
     });
 });
+
+function injectConnectionOverlay() {
+    const connectionUrl = ipcRenderer.sendSync('get-connection-url-sync');
+    
+    // Create the floating button
+    const floatBtn = document.createElement('div');
+    floatBtn.id = 'ytm-connect-float-btn';
+    floatBtn.title = 'Show Connection Info & QR Code';
+    floatBtn.innerHTML = `
+        <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect width="5" height="5" x="3" y="3" rx="1"/>
+            <rect width="5" height="5" x="16" y="3" rx="1"/>
+            <rect width="5" height="5" x="3" y="16" rx="1"/>
+            <path d="M21 16h-3a2 2 0 0 0-2 2v3"/>
+            <path d="M21 21v.01"/>
+            <path d="M12 7v3a2 2 0 0 1-2 2H7"/>
+            <path d="M3 12h.01"/>
+            <path d="M12 3h.01"/>
+            <path d="M12 16v.01"/>
+            <path d="M16 12h1"/>
+            <path d="M21 12v.01"/>
+            <path d="M12 21v-1"/>
+        </svg>
+    `;
+    
+    // Create the modal container
+    const modal = document.createElement('div');
+    modal.id = 'ytm-connect-modal';
+    modal.innerHTML = `
+        <div class="ytm-modal-content">
+            <span class="ytm-close-btn">&times;</span>
+            <h2>YouTube Music Connect</h2>
+            <p>Scan this QR code with your mobile phone to connect instantly:</p>
+            <div class="ytm-qr-container">
+                <img src="https://api.qrserver.com/v1/create-qr-code/?size=180x180&color=030303&data=${encodeURIComponent(connectionUrl)}" alt="QR Code" />
+            </div>
+            <div style="font-size: 13px; color: #aaa; margin-bottom: 12px;">Or open this URL on your phone:</div>
+            <div class="ytm-url-container">
+                <input type="text" value="${connectionUrl}" readonly id="ytm-url-input" />
+                <button id="ytm-copy-btn">Copy</button>
+            </div>
+            <p style="font-size: 11px; color: #888; margin-top: 15px; margin-bottom: 0;">Make sure both devices are on the SAME network (Wi-Fi).</p>
+        </div>
+    `;
+    
+    // Inject styles
+    const styles = document.createElement('style');
+    styles.innerHTML = `
+        #ytm-connect-float-btn {
+            position: fixed;
+            bottom: 105px;
+            left: 25px;
+            width: 45px;
+            height: 45px;
+            background-color: #ff0000;
+            color: #ffffff;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+            cursor: pointer;
+            z-index: 99999;
+            transition: all 0.3s ease;
+        }
+        #ytm-connect-float-btn:hover {
+            transform: scale(1.1);
+            background-color: #cc0000;
+        }
+        #ytm-connect-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(5px);
+            z-index: 999999;
+            justify-content: center;
+            align-items: center;
+            font-family: 'Roboto', sans-serif;
+        }
+        .ytm-modal-content {
+            background-color: #1f1f1f;
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 12px;
+            padding: 30px;
+            width: 350px;
+            text-align: center;
+            color: #ffffff;
+            position: relative;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+        }
+        .ytm-close-btn {
+            position: absolute;
+            top: 15px;
+            right: 20px;
+            font-size: 28px;
+            font-weight: bold;
+            color: #aaa;
+            cursor: pointer;
+            transition: color 0.2s;
+        }
+        .ytm-close-btn:hover {
+            color: #ffffff;
+        }
+        .ytm-modal-content h2 {
+            margin-bottom: 10px;
+            font-size: 20px;
+            font-weight: bold;
+            color: #ff0000;
+        }
+        .ytm-modal-content p {
+            font-size: 13px;
+            color: #ccc;
+            margin-bottom: 20px;
+        }
+        .ytm-qr-container {
+            background-color: #ffffff;
+            padding: 10px;
+            border-radius: 8px;
+            display: inline-block;
+            margin-bottom: 20px;
+        }
+        .ytm-qr-container img {
+            display: block;
+        }
+        .ytm-url-container {
+            display: flex;
+            background-color: #2b2b2b;
+            border-radius: 6px;
+            padding: 4px;
+            border: 1px solid rgba(255,255,255,0.1);
+            align-items: center;
+        }
+        #ytm-url-input {
+            flex: 1;
+            background: transparent;
+            border: none;
+            color: #fff;
+            padding: 8px;
+            font-size: 13px;
+            outline: none;
+            text-align: left;
+        }
+        #ytm-copy-btn {
+            background-color: #ff0000;
+            color: #fff;
+            border: none;
+            border-radius: 4px;
+            padding: 8px 16px;
+            font-size: 12px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        #ytm-copy-btn:hover {
+            background-color: #cc0000;
+        }
+    `;
+    
+    document.head.appendChild(styles);
+    document.body.appendChild(floatBtn);
+    document.body.appendChild(modal);
+    
+    // Event listeners
+    floatBtn.addEventListener('click', () => {
+        modal.style.display = 'flex';
+    });
+    
+    const closeBtn = modal.querySelector('.ytm-close-btn');
+    closeBtn.addEventListener('click', () => {
+        modal.style.display = 'none';
+    });
+    
+    modal.addEventListener('click', (e) => {
+        if (e.target === modal) {
+            modal.style.display = 'none';
+        }
+    });
+    
+    const copyBtn = modal.querySelector('#ytm-copy-btn');
+    const urlInput = modal.querySelector('#ytm-url-input');
+    copyBtn.addEventListener('click', () => {
+        urlInput.select();
+        document.execCommand('copy');
+        copyBtn.textContent = 'Copied!';
+        setTimeout(() => {
+            copyBtn.textContent = 'Copy';
+        }, 2000);
+    });
+}

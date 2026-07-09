@@ -132,6 +132,10 @@ ipcMain.on('get-last-volume-sync', (event) => {
     event.returnValue = lastVolume;
 });
 
+ipcMain.on('get-connection-url-sync', (event) => {
+    event.returnValue = `http://${localIP}:8080`;
+});
+
 // Socket.io commands from Mobile App
 io.on('connection', (socket) => {
     console.log('Mobile app connected!');
