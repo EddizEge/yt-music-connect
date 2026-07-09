@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { io } from 'socket.io-client';
 import { Search, Play, Pause, SkipForward, SkipBack, Cast, MoreVertical, PlayCircle, ChevronDown, Volume2, Loader2, ArrowLeft } from 'lucide-react';
 
-const socket = io(`http://${window.location.hostname}:8080`);
+const socket = io(`http://${window.location.hostname}:${window.location.port === '5173' ? '8080' : (window.location.port || '80')}`);
 
 export default function App() {
   const [activeTab, setActiveTab] = useState('Home');

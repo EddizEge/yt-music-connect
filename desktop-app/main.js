@@ -43,8 +43,27 @@ function getLocalIP() {
     }
     return 'localhost';
 }
-const localIP = getLocalIP();
-const titleText = `YouTube Music Connect (Phone URL: http://${localIP}:8080)`;
+
+let PORT = 8080;
+let localIP = 'localhost';
+let titleText = `YouTube Music Connect`;
+
+// Helper to find a free port natively
+const net = require('net');
+function getFreePort(startPort) {
+    return new Promise((resolve) => {
+        const tempServer = net.createServer();
+        tempServer.listen(startPort, '0.0.0.0', () => {
+            const { port } = tempServer.address();
+            tempServer.close(() => {
+                resolve(port);
+            });
+        });
+        tempServer.on('error', () => {
+            resolve(getFreePort(startPort + 1));
+        });
+    });
+}
 
 app.whenReady().then(async () => {
     // Initialize YouTubei.js for searching
@@ -60,6 +79,19 @@ app.whenReady().then(async () => {
         },
         autoHideMenuBar: true,
         title: titleText
+    });
+
+    // Find free port and start server
+    getFreePort(8080).then((freePort) => {
+        PORT = freePort;
+        localIP = getLocalIP();
+        titleText = `YouTube Music Connect (Phone URL: http://${localIP}:${PORT})`;
+        if (mainWindow) {
+            mainWindow.setTitle(titleText);
+        }
+        server.listen(PORT, '0.0.0.0', () => {
+            console.log(`Local Server listening on port ${PORT} (accessible from mobile over Wi-Fi)`);
+        });
     });
 
     mainWindow.loadURL('https://music.youtube.com');
@@ -94,10 +126,7 @@ app.whenReady().then(async () => {
     mainWindow.webContents.on('did-finish-load', updateAuth);
 });
 
-// Start Server on port 8080
-server.listen(8080, '0.0.0.0', () => {
-    console.log('Local Server listening on port 8080 (accessible from mobile over Wi-Fi)');
-});
+// Express server starts asynchronously once a free port is found
 
 // IPC from Preload (YouTube Music web page)
 ipcMain.on('media-info', (event, info) => {
@@ -133,7 +162,12 @@ ipcMain.on('get-last-volume-sync', (event) => {
 });
 
 ipcMain.on('get-connection-url-sync', (event) => {
-    event.returnValue = `http://${localIP}:8080`;
+    event.returnValue = `http://${localIP}:${PORT}`;
+});
+
+const { shell } = require('electron');
+ipcMain.on('open-external-url', (event, url) => {
+    shell.openExternal(url);
 });
 
 // Socket.io commands from Mobile App

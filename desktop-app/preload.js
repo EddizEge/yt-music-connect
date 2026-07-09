@@ -140,7 +140,16 @@ function injectConnectionOverlay() {
                 <input type="text" value="${connectionUrl}" readonly id="ytm-url-input" />
                 <button id="ytm-copy-btn">Copy</button>
             </div>
-            <p style="font-size: 11px; color: #888; margin-top: 15px; margin-bottom: 0;">Make sure both devices are on the SAME network (Wi-Fi).</p>
+            <p style="font-size: 11px; color: #888; margin-top: 12px; margin-bottom: 0;">Make sure both devices are on the SAME network (Wi-Fi).</p>
+            
+            <div style="margin-top: 15px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 15px;">
+                <button id="ytm-check-update-btn">Check for Updates</button>
+                <div id="ytm-update-status" style="font-size: 12px; color: #aaa; margin-top: 6px;"></div>
+            </div>
+            
+            <div style="font-size: 11px; color: #777; margin-top: 15px; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 10px;">
+                Developed by Ediz Ege Mercan
+            </div>
         </div>
     `;
     
@@ -186,7 +195,7 @@ function injectConnectionOverlay() {
             background-color: #1f1f1f;
             border: 1px solid rgba(255,255,255,0.1);
             border-radius: 12px;
-            padding: 30px;
+            padding: 25px;
             width: 350px;
             text-align: center;
             color: #ffffff;
@@ -258,6 +267,20 @@ function injectConnectionOverlay() {
         #ytm-copy-btn:hover {
             background-color: #cc0000;
         }
+        #ytm-check-update-btn {
+            background-color: #333;
+            color: #fff;
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 4px;
+            padding: 8px 16px;
+            font-size: 12px;
+            cursor: pointer;
+            width: 100%;
+            transition: background 0.2s;
+        }
+        #ytm-check-update-btn:hover {
+            background-color: #444;
+        }
     `;
     
     document.head.appendChild(styles);
@@ -289,5 +312,32 @@ function injectConnectionOverlay() {
         setTimeout(() => {
             copyBtn.textContent = 'Copy';
         }, 2000);
+    });
+
+    // Check for updates
+    const checkUpdateBtn = modal.querySelector('#ytm-check-update-btn');
+    const updateStatus = modal.querySelector('#ytm-update-status');
+    
+    checkUpdateBtn.addEventListener('click', () => {
+        updateStatus.textContent = 'Checking for updates...';
+        fetch('https://raw.githubusercontent.com/EddizEge/yt-music-connect/main/version.json')
+            .then(res => res.json())
+            .then(data => {
+                const localVer = '1.0.1'; // local version
+                if (data.version && data.version !== localVer) {
+                    updateStatus.innerHTML = `
+                        <span style="color: #ff3333; font-weight: bold;">New version (${data.version}) available!</span><br/>
+                        <button id="ytm-go-release-btn" style="margin-top: 8px; background-color: #ff0000; color: #fff; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 12px;">Download Update</button>
+                    `;
+                    modal.querySelector('#ytm-go-release-btn').addEventListener('click', () => {
+                        ipcRenderer.send('open-external-url', 'https://github.com/EddizEge/yt-music-connect/releases');
+                    });
+                } else {
+                    updateStatus.innerHTML = `<span style="color: #4cd964;">App is up to date (v${localVer})</span>`;
+                }
+            })
+            .catch(() => {
+                updateStatus.textContent = 'Failed to check for updates.';
+            });
     });
 }
