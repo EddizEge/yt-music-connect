@@ -1,119 +1,4 @@
-const { contextBridge, ipcRenderer } = require('electron');
-
-// Inject script to main world to run queue actions in page context (avoiding context isolation boundary)
-const mainWorldScript = document.createElement('script');
-mainWorldScript.textContent = `
-    window.addEventListener('ytm-command', (e) => {
-        const { command, videoId, playNext } = e.detail;
-        console.log('Main world executing queue command:', command, 'videoId:', videoId, 'playNext:', playNext);
-        const app = document.querySelector('ytmusic-app');
-        if (!app) {
-            console.error('ytm-command error: ytmusic-app not found in main world');
-            return;
-        }
-        
-        const insertPosition = playNext ? 'INSERT_AFTER_CURRENT_VIDEO' : 'INSERT_AT_END';
-        
-        // Try Method 1: app.store.dispatch ADD_ITEMS_TO_QUEUE
-        try {
-            if (app.store && app.store.dispatch) {
-                app.store.dispatch({
-                    type: 'ADD_ITEMS_TO_QUEUE',
-                    payload: {
-                        videoIds: [videoId],
-                        queueInsertPosition: insertPosition
-                    }
-                });
-                console.log('Main world: Queued via ADD_ITEMS_TO_QUEUE');
-                return;
-            }
-        } catch(err) {
-            console.error('Main world ADD_ITEMS_TO_QUEUE failed:', err.message);
-        }
-        
-        // Try Method 2: app.store.dispatch QUEUE_ADD_ITEMS
-        try {
-            if (app.store && app.store.dispatch) {
-                app.store.dispatch({
-                    type: 'QUEUE_ADD_ITEMS',
-                    payload: {
-                        items: [{ videoId }],
-                        queueInsertPosition: insertPosition
-                    }
-                });
-                console.log('Main world: Queued via QUEUE_ADD_ITEMS');
-                return;
-            }
-        } catch(err) {
-            console.error('Main world QUEUE_ADD_ITEMS failed:', err.message);
-        }
-
-        // Try Method 3: app.store.dispatch ADD_PLAYBACK_ITEMS
-        try {
-            if (app.store && app.store.dispatch) {
-                app.store.dispatch({
-                    type: 'ADD_PLAYBACK_ITEMS',
-                    payload: {
-                        videoIds: [videoId],
-                        queueInsertPosition: insertPosition
-                    }
-                });
-                console.log('Main world: Queued via ADD_PLAYBACK_ITEMS');
-                return;
-            }
-        } catch(err) {
-            console.error('Main world ADD_PLAYBACK_ITEMS failed:', err.message);
-        }
-
-        // Try Method 4: app.queue.add
-        try {
-            if (app.queue && typeof app.queue.add === 'function') {
-                app.queue.add({ videoId, insertPosition });
-                console.log('Main world: Queued via app.queue.add');
-                return;
-            }
-        } catch(err) {
-            console.error('Main world app.queue.add failed:', err.message);
-        }
-
-        // Try Method 5: playerApi_ of ytmusic-player-bar
-        try {
-            const playerBar = document.querySelector('ytmusic-player-bar');
-            const playerApi = playerBar ? playerBar.playerApi_ : null;
-            if (playerApi) {
-                if (typeof playerApi.addToPlaylist === 'function') {
-                    playerApi.addToPlaylist(videoId);
-                    console.log('Main world: Queued via playerApi.addToPlaylist');
-                    return;
-                } else if (typeof playerApi.enqueueVideo === 'function') {
-                    playerApi.enqueueVideo(videoId);
-                    console.log('Main world: Queued via playerApi.enqueueVideo');
-                    return;
-                } else if (typeof playerApi.cueVideoById === 'function' && playNext) {
-                    playerApi.cueVideoById(videoId);
-                    console.log('Main world: Cued via playerApi.cueVideoById');
-                    return;
-                }
-            }
-        } catch(err) {
-            console.error('Main world playerApi failed:', err.message);
-        }
-        
-        console.error('Main world: All queueing methods failed.');
-    });
-`;
-if (document.documentElement) {
-    document.documentElement.appendChild(mainWorldScript);
-    mainWorldScript.remove();
-} else {
-    const injectInterval = setInterval(() => {
-        if (document.documentElement) {
-            document.documentElement.appendChild(mainWorldScript);
-            mainWorldScript.remove();
-            clearInterval(injectInterval);
-        }
-    }, 5);
-}
+const { contextBridge, ipcRenderer, webFrame } = require('electron');
 
 let volumeRestored = false;
 let lastVideoSrc = '';
@@ -167,7 +52,9 @@ setInterval(() => {
             const duration = videoElement.duration;
             const cover = imgElement ? imgElement.src : '';
             
-            const queueItems = Array.from(document.querySelectorAll('ytmusic-player-queue-item')).slice(0, 20).map(item => ({
+            const panel = document.querySelector('ytmusic-playlist-panel-renderer');
+            const queueElements = panel ? panel.querySelectorAll('ytmusic-player-queue-item') : [];
+            const queueItems = Array.from(queueElements).slice(0, 20).map(item => ({
                 title: item.querySelector('.song-title')?.textContent || '',
                 artist: item.querySelector('.byline')?.textContent || '',
                 isPlaying: item.hasAttribute('play-indicator') || item.getAttribute('play-button-state') === 'playing'
@@ -223,120 +110,143 @@ setInterval(() => {
     });
 
 function addVideoToQueue(videoId, playNext = false) {
-    console.log(`addVideoToQueue requested: videoId=${videoId}, playNext=${playNext}`);
-    const app = document.querySelector('ytmusic-app');
-    if (!app) {
-        console.log('addVideoToQueue error: ytmusic-app not found in DOM');
-        return;
-    }
-    
+    console.log(`addVideoToQueue: executing main world queue injection for videoId=${videoId}, playNext=${playNext}`);
     const insertPosition = playNext ? 'INSERT_AFTER_CURRENT_VIDEO' : 'INSERT_AT_END';
     
-    // Method 1: Redux Action ADD_ITEMS_TO_QUEUE
-    try {
-        if (app.store && app.store.dispatch) {
-            app.store.dispatch({
-                type: 'ADD_ITEMS_TO_QUEUE',
-                payload: {
-                    videoIds: [videoId],
-                    queueInsertPosition: insertPosition
-                }
-            });
-            console.log('Queued via ADD_ITEMS_TO_QUEUE');
-            return;
-        }
-    } catch(e) {
-        console.log('ADD_ITEMS_TO_QUEUE failed:', e.message);
-    }
-    
-    // Method 2: Redux Action QUEUE_ADD_ITEMS
-    try {
-        if (app.store && app.store.dispatch) {
-            app.store.dispatch({
-                type: 'QUEUE_ADD_ITEMS',
-                payload: {
-                    items: [{ videoId }],
-                    queueInsertPosition: insertPosition
-                }
-            });
-            console.log('Queued via QUEUE_ADD_ITEMS');
-            return;
-        }
-    } catch(e) {
-        console.log('QUEUE_ADD_ITEMS failed:', e.message);
-    }
-
-    // Method 3: Redux Action ADD_PLAYBACK_ITEMS
-    try {
-        if (app.store && app.store.dispatch) {
-            app.store.dispatch({
-                type: 'ADD_PLAYBACK_ITEMS',
-                payload: {
-                    videoIds: [videoId],
-                    queueInsertPosition: insertPosition
-                }
-            });
-            console.log('Queued via ADD_PLAYBACK_ITEMS');
-            return;
-        }
-    } catch(e) {
-        console.log('ADD_PLAYBACK_ITEMS failed:', e.message);
-    }
-    
-    // Method 4: app.queue.add
-    try {
-        if (app.queue && typeof app.queue.add === 'function') {
-            app.queue.add({ videoId, insertPosition });
-            console.log('Queued via app.queue.add');
-            return;
-        }
-    } catch(e) {
-        console.log('app.queue.add failed:', e.message);
-    }
-    
-    // Method 5: playerApi_ of ytmusic-player-bar
-    try {
-        const playerBar = document.querySelector('ytmusic-player-bar');
-        const playerApi = playerBar ? playerBar.playerApi_ : null;
-        if (playerApi) {
-            if (typeof playerApi.addToPlaylist === 'function') {
-                playerApi.addToPlaylist(videoId);
-                console.log('Queued via playerApi.addToPlaylist');
-                return;
-            } else if (typeof playerApi.enqueueVideo === 'function') {
-                playerApi.enqueueVideo(videoId);
-                console.log('Queued via playerApi.enqueueVideo');
-                return;
-            } else if (typeof playerApi.cueVideoById === 'function' && playNext) {
-                // fallback to cue/load if queue actions are not available
-                playerApi.cueVideoById(videoId);
-                console.log('Cued via playerApi.cueVideoById');
+    const code = `
+        (function() {
+            const app = document.querySelector('ytmusic-app');
+            if (!app) {
+                console.error('Main world: ytmusic-app element not found');
                 return;
             }
-        }
-    } catch(e) {
-        console.log('playerApi queue failed:', e.message);
-    }
-
-    // Method 6: HTML5 player API addToPlaylist
-    try {
-        const player = document.getElementById('movie_player');
-        if (player) {
-            if (typeof player.addToPlaylist === 'function') {
-                player.addToPlaylist(videoId);
-                console.log('Queued via player.addToPlaylist');
-                return;
-            } else if (typeof player.enqueueVideo === 'function') {
-                player.enqueueVideo(videoId);
-                console.log('Queued via player.enqueueVideo');
-                return;
+            
+            const videoId = "${videoId}";
+            const insertPosition = "${insertPosition}";
+            const isPlaylist = videoId.startsWith('PL') || videoId.startsWith('VL') || videoId.startsWith('MPREb_') || videoId.length > 15;
+            const cleanId = videoId.startsWith('VL') ? videoId.slice(2) : videoId;
+            
+            console.log('Main world queue command videoId:', videoId, 'isPlaylist:', isPlaylist, 'position:', insertPosition);
+            
+            // Method 1: Redux Action ADD_ITEMS_TO_QUEUE
+            try {
+                if (app.store && app.store.dispatch) {
+                    const payload = isPlaylist ? {
+                        playlistId: cleanId,
+                        queueInsertPosition: insertPosition
+                    } : {
+                        videoIds: [videoId],
+                        queueInsertPosition: insertPosition
+                    };
+                    app.store.dispatch({
+                        type: 'ADD_ITEMS_TO_QUEUE',
+                        payload: payload
+                    });
+                    console.log('Main world: Queued via ADD_ITEMS_TO_QUEUE');
+                    return;
+                }
+            } catch(e) {
+                console.error('Main world ADD_ITEMS_TO_QUEUE error:', e.message);
             }
-        }
-    } catch(e) {
-        console.log('movie_player queue failed:', e.message);
-    }
-    
-    console.log('All queueing methods failed.');
+            
+            // Method 2: Redux Action QUEUE_ADD_ITEMS
+            try {
+                if (app.store && app.store.dispatch) {
+                    const payload = isPlaylist ? {
+                        playlistId: cleanId,
+                        queueInsertPosition: insertPosition
+                    } : {
+                        items: [{ videoId }],
+                        queueInsertPosition: insertPosition
+                    };
+                    app.store.dispatch({
+                        type: 'QUEUE_ADD_ITEMS',
+                        payload: payload
+                    });
+                    console.log('Main world: Queued via QUEUE_ADD_ITEMS');
+                    return;
+                }
+            } catch(e) {
+                console.error('Main world QUEUE_ADD_ITEMS error:', e.message);
+            }
+
+            // Method 3: Redux Action ADD_PLAYBACK_ITEMS
+            try {
+                if (app.store && app.store.dispatch) {
+                    const payload = isPlaylist ? {
+                        playlistId: cleanId,
+                        queueInsertPosition: insertPosition
+                    } : {
+                        videoIds: [videoId],
+                        queueInsertPosition: insertPosition
+                    };
+                    app.store.dispatch({
+                        type: 'ADD_PLAYBACK_ITEMS',
+                        payload: payload
+                    });
+                    console.log('Main world: Queued via ADD_PLAYBACK_ITEMS');
+                    return;
+                }
+            } catch(e) {
+                console.error('Main world ADD_PLAYBACK_ITEMS error:', e.message);
+            }
+            
+            // Method 4: app.queue.add
+            try {
+                if (app.queue && typeof app.queue.add === 'function') {
+                    app.queue.add({ videoId, insertPosition });
+                    console.log('Main world: Queued via app.queue.add');
+                    return;
+                }
+            } catch(e) {
+                console.error('Main world app.queue.add error:', e.message);
+            }
+            
+            // Method 5: playerApi_ of ytmusic-player-bar
+            try {
+                const playerBar = document.querySelector('ytmusic-player-bar');
+                const playerApi = playerBar ? playerBar.playerApi_ : null;
+                if (playerApi) {
+                    if (typeof playerApi.addToPlaylist === 'function') {
+                        playerApi.addToPlaylist(videoId);
+                        console.log('Main world: Queued via playerApi.addToPlaylist');
+                        return;
+                    } else if (typeof playerApi.enqueueVideo === 'function') {
+                        playerApi.enqueueVideo(videoId);
+                        console.log('Main world: Queued via playerApi.enqueueVideo');
+                        return;
+                    } else if (typeof playerApi.cueVideoById === 'function' && ${playNext}) {
+                        playerApi.cueVideoById(videoId);
+                        console.log('Main world: Cued via playerApi.cueVideoById');
+                        return;
+                    }
+                }
+            } catch(e) {
+                console.error('Main world playerApi error:', e.message);
+            }
+
+            // Method 6: HTML5 player API addToPlaylist
+            try {
+                const player = document.getElementById('movie_player');
+                if (player) {
+                    if (typeof player.addToPlaylist === 'function') {
+                        player.addToPlaylist(videoId);
+                        console.log('Main world: Queued via player.addToPlaylist');
+                        return;
+                    } else if (typeof player.enqueueVideo === 'function') {
+                        player.enqueueVideo(videoId);
+                        console.log('Main world: Queued via player.enqueueVideo');
+                        return;
+                    }
+                }
+            } catch(e) {
+                console.error('Main world movie_player error:', e.message);
+            }
+            
+            console.error('Main world: All queueing methods failed.');
+        })()
+    `;
+    webFrame.executeJavaScript(code);
 }
 
 function injectConnectionOverlay() {
