@@ -21,3 +21,6 @@ cookie_test.txt
 library_error.txt
 playlists_error.txt
 test-*.js
+
+# Local bug screenshots (may contain personal account data)
+Bugs/
